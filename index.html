@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>坐席绩效业绩排行榜</title>
+<style>
+  :root{
+    --bg:#eef6fb; --surface:#ffffff; --text:#0f2a3f; --muted:#5b7689;
+    --accent:#0ea5b7; --accent2:#2563eb; --hdr-bg:#0ea5b7; --hdr-text:#ffffff;
+    --row-alt:rgba(14,165,183,.06); --border:rgba(14,165,183,.18); --shadow:rgba(15,42,63,.10);
+    --badge1:#f97316; --badge2:#2563eb; --badge3:#16a34a;
+    --rank-gold:#eab308; --rank-silver:#94a3b8; --rank-bronze:#d97706;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(160deg,var(--bg) 0%,var(--surface) 60%,var(--bg) 100%);
+    color:var(--text);min-height:100vh;line-height:1.5;transition:background .4s,color .4s;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 90px;}
+
+  /* ===== Header ===== */
+  header.hero{
+    position:relative;text-align:center;padding:26px 18px 20px;border-radius:18px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#fff;box-shadow:0 14px 34px var(--shadow);overflow:hidden;
+  }
+  header.hero::after{content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 20% 10%,rgba(255,255,255,.22),transparent 45%),
+               radial-gradient(circle at 85% 90%,rgba(255,255,255,.14),transparent 40%);}
+  header.hero *{position:relative;z-index:1;}
+  .hero h1{margin:0;font-size:clamp(22px,4.4vw,40px);letter-spacing:2px;font-weight:800;
+    text-shadow:0 2px 10px rgba(0,0,0,.18);}
+  .hero .period{margin-top:10px;font-size:clamp(13px,2.2vw,16px);opacity:.95;font-weight:600;}
+  .hero .note{margin-top:6px;font-size:clamp(11px,1.9vw,13px);opacity:.85;}
+
+  /* ===== Controls ===== */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:16px 0 10px;}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--surface);
+    border:1.5px solid var(--border);border-radius:999px;padding:8px 14px;flex:1 1 260px;
+    box-shadow:0 4px 14px var(--shadow);}
+  .search-box svg{flex:0 0 auto;}
+  .search-box input{border:0;outline:0;background:transparent;color:var(--text);
+    font-size:15px;width:100%;font-family:inherit;}
+  .search-box input::placeholder{color:var(--muted);}
+  .clear-btn{border:0;background:var(--accent);color:#fff;border-radius:999px;
+    width:26px;height:26px;cursor:pointer;font-size:15px;line-height:1;flex:0 0 auto;display:none;}
+  .stats{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;}
+
+  /* ===== Interval filter chips ===== */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px;}
+  .chip{border:1.5px solid var(--border);background:var(--surface);color:var(--text);
+    border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;transition:.2s;}
+  .chip .dot{width:10px;height:10px;border-radius:50%;}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .chip.active .dot{background:#fff !important;}
+
+  /* ===== Table ===== */
+  .table-card{background:var(--surface);border-radius:16px;box-shadow:0 10px 30px var(--shadow);
+    overflow:hidden;border:1px solid var(--border);}
+  .table-scroll{height:clamp(360px,58vh,720px);overflow:hidden;position:relative;}
+  .table-scroll.searchable{overflow-y:auto;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  thead th{position:sticky;top:0;z-index:3;background:var(--hdr-bg);color:var(--hdr-text);
+    font-weight:700;font-size:clamp(12px,2.1vw,15px);padding:13px 8px;text-align:center;
+    border-bottom:2px solid rgba(255,255,255,.25);letter-spacing:.5px;white-space:nowrap;}
+  tbody td{text-align:center;padding:11px 8px;font-size:clamp(12px,2vw,14.5px);
+    border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;}
+  tbody tr:nth-child(even) td{background:var(--row-alt);}
+  tbody tr:hover td{background:rgba(255,255,255,.0);filter:brightness(.97);}
+  .rank-cell{font-weight:800;font-size:clamp(13px,2.2vw,16px);}
+  .rank-1{color:var(--rank-gold);} .rank-2{color:var(--rank-silver);} .rank-3{color:var(--rank-bronze);}
+  .col-team{font-weight:600;}
+  .bonus-val{font-weight:800;font-variant-numeric:tabular-nums;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;color:#fff;font-size:11.5px;font-weight:700;}
+
+  /* scroll fade edges */
+  .table-scroll::before,.table-scroll::after{content:"";position:absolute;left:0;right:0;height:26px;z-index:2;pointer-events:none;}
+  .table-scroll::before{top:0;background:linear-gradient(var(--surface),transparent);}
+  .table-scroll::after{bottom:0;background:linear-gradient(transparent,var(--surface));}
+
+  /* ===== Theme floating ball ===== */
+  .theme-fab{position:fixed;right:18px;top:50%;transform:translateY(-50%);z-index:60;}
+  .fab-btn{width:56px;height:56px;border-radius:50%;border:0;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:24px;
+    box-shadow:0 8px 22px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;
+    transition:transform .25s,box-shadow .25s;}
+  .fab-btn:hover{transform:scale(1.08) rotate(12deg);}
+  .theme-panel{position:fixed;right:18px;top:50%;transform:translateY(-50%) scale(.9);
+    width:min(300px,86vw);max-height:78vh;overflow-y:auto;background:var(--surface);
+    border:1px solid var(--border);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.30);
+    padding:14px;z-index:61;opacity:0;pointer-events:none;transition:.22s;}
+  .theme-panel.open{opacity:1;pointer-events:auto;transform:translateY(-50%) scale(1);}
+  .theme-panel h3{margin:2px 2px 10px;font-size:14px;color:var(--text);display:flex;justify-content:space-between;align-items:center;}
+  .theme-panel .close{background:none;border:0;font-size:20px;color:var(--muted);cursor:pointer;line-height:1;}
+  .theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+  .theme-opt{border:2px solid transparent;border-radius:11px;padding:8px 4px;cursor:pointer;
+    text-align:center;font-size:11.5px;font-weight:600;background:var(--bg);transition:.15s;color:var(--text);}
+  .theme-opt:hover{transform:translateY(-2px);}
+  .theme-opt.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--row-alt);}
+  .theme-opt .sw{width:100%;height:26px;border-radius:7px;margin-bottom:5px;border:1px solid rgba(0,0,0,.08);}
+  .panel-hide{margin-top:12px;width:100%;border:1px solid var(--border);background:var(--bg);
+    color:var(--muted);border-radius:9px;padding:8px;font-size:12.5px;font-weight:600;cursor:pointer;}
+  .fab-tab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:60;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;
+    border-radius:12px 0 0 12px;padding:12px 7px;font-size:13px;font-weight:700;cursor:pointer;
+    writing-mode:vertical-rl;letter-spacing:3px;box-shadow:-4px 0 14px rgba(0,0,0,.22);display:none;}
+
+  footer{text-align:center;color:var(--muted);font-size:12px;margin-top:22px;line-height:1.7;}
+
+  /* ===== Responsive ===== */
+  @media (max-width:680px){
+    .wrap{padding:12px 10px 90px;}
+    .controls{margin-top:12px;}
+    .search-box{flex:1 1 100%;}
+    .stats{flex:1 1 100%;text-align:left;}
+    .table-scroll{height:clamp(320px,52vh,560px);}
+    thead th{padding:10px 4px;font-size:12px;}
+    tbody td{padding:9px 4px;font-size:12px;}
+    .theme-fab,.theme-panel{right:10px;}
+    .theme-grid{grid-template-columns:repeat(3,1fr);}
+  }
+  @media (min-width:681px) and (max-width:1024px){
+    .table-scroll{height:clamp(360px,56vh,680px);}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <h1>坐席绩效业绩排行榜</h1>
+    <div class="period" id="periodLine">数据期间加载中…</div>
+    <div class="note">⚠️ 数据未含质量、考勤等，以最终绩效为准。</div>
+  </header>
+
+  <div class="controls">
+    <div class="search-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+      <input id="searchInput" type="text" placeholder="搜索姓名 / 列队…" autocomplete="off" />
+      <button class="clear-btn" id="clearBtn" title="清除">×</button>
+    </div>
+    <div class="stats" id="statsLine"></div>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="table-card">
+    <div class="table-scroll" id="tableScroll">
+      <table>
+        <thead>
+          <tr>
+            <th>姓名</th><th>列队</th><th>报表话务量</th><th>漏接回拨</th>
+            <th>计奖话务量</th><th>排名（按绩效奖金）</th><th>绩效奖金</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    本榜单为演示数据（综合 / 人社 / 公教企 各 100 人，工单 35 人，共 335 人）<br/>
+    绩效奖金依据「计奖话务量 → 奖金」阶梯表计算，区间展示与主题均可配置。
+  </footer>
+</div>
+
+<!-- Theme floating ball -->
+<div class="theme-fab" id="themeFab">
+  <button class="fab-btn" id="fabBtn" title="切换主题">🎨</button>
+</div>
+<button class="fab-tab" id="fabTab">主题</button>
+<div class="theme-panel" id="themePanel">
+  <h3>选择主题 <button class="close" id="panelClose">×</button></h3>
+  <div class="theme-grid" id="themeGrid"></div>
+  <button class="panel-hide" id="panelHide">隐藏悬浮球</button>
+</div>
+
+<script>
+/* =========================================================================
+   可配置区域（按需修改）
+   ========================================================================= */
+// 数据期间：start 默认“上个月 1 号”，end 默认“今天（数据最新日期）”
+const CONFIG = {
+  // 各列队人数（可随意调整）
+  teams: [
+    { name: "综合",  count: 100 },
+    { name: "人社",  count: 100 },
+    { name: "公教企", count: 100 },
+    { name: "工单",  count: 35 },
+  ],
+  // 绩效奖金「展示区间」（可配置：修改 label / min / max / color 即可）
+  bonusIntervals: [
+    { label: "0-500",    min: 0,    max: 500,     color: "#f97316" },
+    { label: "500-1000", min: 500,  max: 1000,    color: "#2563eb" },
+    { label: "1000以上", min: 1000, max: Infinity, color: "#16a34a" },
+  ],
+  // 滚动速度（像素/秒，越小越慢）
+  scrollSpeed: 30,
+};
+
+// 绩效奖金阶梯表（与《绩效奖金计算.xlsx》一致：计奖话务量 → 绩效奖金）
+// 每行 [上限, 奖金]：计奖话务量 < 上限 时取该奖金
+const BONUS_TABLE = [
+  [100,100],[200,300],[300,500],[400,500],[500,700],[600,700],[700,1000],[800,1000],
+  [900,1300],[1000,1500],[1100,1500],[1200,1500],[1300,1500],[1400,2000],[1500,2300],
+  [1600,2300],[1700,2500],[1800,2700],[1900,2850],[2000,3000],[2100,3150],[2200,3300],
+  [2300,3450],[2400,3600],[2500,3750],[2600,3900],[2700,4050],[2800,4200],[2900,4350],
+  [3000,4500],[3100,4650],[3200,4800],[3300,4950],[3400,5100],[3500,5250],[3600,5400],
+  [3700,5550],[3800,5700],[3900,5850],[4000,6000],[4100,6150]
+];
+function calcBonus(v){
+  for(const [ub,b] of BONUS_TABLE){ if(v < ub) return b; }
+  const extra = Math.ceil((v - 4100) / 100) * 150;
+  return 6150 + Math.max(0, extra);
+}
+
+/* ---------- 生成模拟数据 ---------- */
+const SURNAMES = "王李张刘陈杨黄赵周吴徐孙朱马胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖田董袁潘于蒋蔡余杜叶程苏魏吕丁任沈姚卢傅钟姜崔谭廖范汪陆金石戴贾韦夏邱方侯邹熊孟秦白江阎薛尹段雷黎史龙陶贺顾毛郝龚邵万钱严覃武戚莫孔".split("");
+const GIVEN = "伟芳娜秀英敏静丽强磊洋勇艳杰娟涛明超霞平刚文辉力军建国玉兰海燕志强春梅桂花婷雪峰波建华晓东志明俊杰晓明雅雯欣怡梓涵浩然宇轩子轩若曦梦琪佳怡思远嘉怡博文雨欣佳琪天佑佳鑫一鸣嘉睿晨曦子涵可昕佳宁艺涵雨泽鑫磊锦程浩宇欣妍子墨梓萱睿轩沐宸景行致远".split("");
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function makeName(used){
+  for(let t=0;t<60;t++){
+    const nm = SURNAMES[randInt(0,SURNAMES.length-1)] +
+               GIVEN[randInt(0,GIVEN.length-1)] +
+               (Math.random()<0.5 ? GIVEN[randInt(0,GIVEN.length-1)] : "");
+    if(!used.has(nm)){ used.add(nm); return nm; }
+  }
+  const nm = SURNAMES[randInt(0,SURNAMES.length-1)] + "某" + randInt(100,999);
+  used.add(nm); return nm;
+}
+function genData(){
+  const used = new Set(); const rows = [];
+  for(const team of CONFIG.teams){
+    for(let i=0;i<team.count;i++){
+      const report = randInt(80, 1250);                       // 报表话务量
+      const missed = randInt(0, Math.min(70, Math.floor(report*0.35))); // 漏接回拨
+      const reward = Math.max(0, report - missed);            // 计奖话务量
+      const bonus = calcBonus(reward);                        // 绩效奖金
+      rows.push({ name: makeName(used), team: team.name, report, missed, reward, bonus });
+    }
+  }
+  rows.sort((a,b)=> b.bonus - a.bonus);                        // 按绩效奖金降序
+  rows.forEach((r,idx)=> r.rank = idx+1);
+  return rows;
+}
+const ALL = genData();
+
+/* ---------- 区间判定 ---------- */
+function intervalOf(bonus){
+  for(const iv of CONFIG.bonusIntervals){
+    if(bonus >= iv.min && bonus < iv.max) return iv;
+  }
+  return CONFIG.bonusIntervals[CONFIG.bonusIntervals.length-1];
+}
+
+/* ---------- 渲染 ---------- */
+const tbody = document.getElementById("tbody");
+const scroll = document.getElementById("tableScroll");
+let activeInterval = null; // null = 全部
+
+function rowHTML(r){
+  const iv = intervalOf(r.bonus);
+  const rankCls = r.rank<=3 ? "rank-"+r.rank : "";
+  return `<tr>
+    <td>${r.name}</td>
+    <td class="col-team">${r.team}</td>
+    <td>${r.report}</td>
+    <td>${r.missed}</td>
+    <td>${r.reward}</td>
+    <td class="rank-cell ${rankCls}">${r.rank}</td>
+    <td class="bonus-val">¥${r.bonus}
+      <span class="badge" style="background:${iv.color}">${iv.label}</span>
+    </td>
+  </tr>`;
+}
+
+/* 滚动模式：渲染两份用于无缝循环 */
+let rafId = null, offset = 0, lastT = 0, paused = false;
+function renderScroll(){
+  cancelAnimationFrame(rafId);
+  scroll.classList.remove("searchable");
+  const html = ALL.map(rowHTML).join("");
+  tbody.innerHTML = html + html; // 两份
+  offset = 0; lastT = 0; paused = false;
+  requestAnimationFrame(animate);
+}
+function animate(t){
+  if(!lastT) lastT = t;
+  const dt = t - lastT; lastT = t;
+  if(!paused){
+    offset -= CONFIG.scrollSpeed * dt / 1000;
+    const half = tbody.scrollHeight / 2;
+    if(-offset >= half) offset += half;
+    tbody.style.transform = `translateY(${offset}px)`;
+  }
+  rafId = requestAnimationFrame(animate);
+}
+scroll.addEventListener("mouseenter", ()=> paused = true);
+scroll.addEventListener("mouseleave", ()=> paused = false);
+scroll.addEventListener("touchstart", ()=> paused = true, {passive:true});
+scroll.addEventListener("touchend",   ()=> paused = false);
+
+/* 搜索模式：渲染筛选结果，容器可手动滚动 */
+function renderSearch(q){
+  cancelAnimationFrame(rafId);
+  tbody.style.transform = "";
+  scroll.classList.add("searchable");
+  const kw = q.trim().toLowerCase();
+  const list = ALL.filter(r=>{
+    if(activeInterval && r.bonus < activeInterval.min) return false;
+    if(activeInterval && r.bonus >= activeInterval.max) return false;
+    if(!kw) return true;
+    return r.name.toLowerCase().includes(kw) || r.team.toLowerCase().includes(kw);
+  });
+  tbody.innerHTML = list.length
+    ? list.map(rowHTML).join("")
+    : `<tr><td colspan="7" style="padding:40px;color:var(--muted)">未找到匹配记录</td></tr>`;
+  document.getElementById("statsLine").textContent = `匹配 ${list.length} 人`;
+}
+
+/* ---------- 搜索交互 ---------- */
+const searchInput = document.getElementById("searchInput");
+const clearBtn = document.getElementById("clearBtn");
+searchInput.addEventListener("input", ()=>{
+  const q = searchInput.value;
+  clearBtn.style.display = q ? "block" : "none";
+  if(q.trim()) renderSearch(q); else { document.getElementById("statsLine").textContent = `共 ${ALL.length} 人`; renderScroll(); }
+});
+clearBtn.addEventListener("click", ()=>{
+  searchInput.value=""; clearBtn.style.display="none";
+  document.getElementById("statsLine").textContent = `共 ${ALL.length} 人`; renderScroll();
+});
+
+/* ---------- 区间筛选 chips ---------- */
+const chipsBox = document.getElementById("chips");
+function renderChips(){
+  let html = `<div class="chip ${activeInterval===null?'active':''}" data-iv="all">
+      <span class="dot" style="background:var(--accent)"></span>全部</div>`;
+  CONFIG.bonusIntervals.forEach((iv,i)=>{
+    html += `<div class="chip ${activeInterval===iv?'active':''}" data-iv="${i}">
+      <span class="dot" style="background:${iv.color}"></span>${iv.label}</div>`;
+  });
+  chipsBox.innerHTML = html;
+  chipsBox.querySelectorAll(".chip").forEach(c=>{
+    c.addEventListener("click", ()=>{
+      const v = c.dataset.iv;
+      activeInterval = (v==="all") ? null : CONFIG.bonusIntervals[+v];
+      renderChips();
+      const q = searchInput.value;
+      if(q.trim()) renderSearch(q); else renderScroll();
+    });
+  });
+}
+
+/* ---------- 数据期间 ---------- */
+(function setPeriod(){
+  const now = new Date();
+  const end = now;
+  const start = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  document.getElementById("periodLine").textContent = `数据期间：${fmt(start)} 至 ${fmt(end)}（数据最新日期）`;
+})();
+
+/* =========================================================================
+   主题系统（24 套）
+   ========================================================================= */
+const THEMES = [
+  {name:"海洋",  bg:"#eef6fb", surface:"#ffffff", text:"#0f2a3f", accent:"#0ea5b7", accent2:"#2563eb", hdrBg:"#0ea5b7", hdrText:"#ffffff"},
+  {name:"落日",  bg:"#fff3ec", surface:"#fffaf6", text:"#3a1f12", accent:"#f97316", accent2:"#ef4444", hdrBg:"#fb923c", hdrText:"#ffffff"},
+  {name:"森林",  bg:"#eef7ee", surface:"#ffffff", text:"#142a16", accent:"#16a34a", accent2:"#0d9488", hdrBg:"#15803d", hdrText:"#ffffff"},
+  {name:"薰衣草",bg:"#f4f0fb", surface:"#ffffff", text:"#2a1f3a", accent:"#7c3aed", accent2:"#db2777", hdrBg:"#8b5cf6", hdrText:"#ffffff"},
+  {name:"午夜",  bg:"#0b1020", surface:"#151c30", text:"#e6ecff", accent:"#38bdf8", accent2:"#818cf8", hdrBg:"#1e293b", hdrText:"#e6ecff"},
+  {name:"玫瑰",  bg:"#fdf0f4", surface:"#ffffff", text:"#3a1420", accent:"#e11d8f", accent2:"#f43f5e", hdrBg:"#db2777", hdrText:"#ffffff"},
+  {name:"翡翠",  bg:"#eafaf3", surface:"#ffffff", text:"#0c2e22", accent:"#059669", accent2:"#10b981", hdrBg:"#047857", hdrText:"#ffffff"},
+  {name:"琥珀",  bg:"#fff8e8", surface:"#fffdf7", text:"#3a2a08", accent:"#d97706", accent2:"#f59e0b", hdrBg:"#f59e0b", hdrText:"#1f1402"},
+  {name:"石板",  bg:"#eef1f5", surface:"#ffffff", text:"#1f2937", accent:"#475569", accent2:"#64748b", hdrBg:"#334155", hdrText:"#ffffff"},
+  {name:"青蓝",  bg:"#e6fbff", surface:"#ffffff", text:"#06303a", accent:"#06b6d4", accent2:"#0891b2", hdrBg:"#0891b2", hdrText:"#ffffff"},
+  {name:"品红",  bg:"#fceafb", surface:"#ffffff", text:"#3a0d36", accent:"#c026d3", accent2:"#a21caf", hdrBg:"#a21caf", hdrText:"#ffffff"},
+  {name:"蓝绿",  bg:"#e7f7f5", surface:"#ffffff", text:"#0a2e2b", accent:"#14b8a6", accent2:"#0d9488", hdrBg:"#0d9488", hdrText:"#ffffff"},
+  {name:"靛蓝",  bg:"#eef0fb", surface:"#ffffff", text:"#1a1f3a", accent:"#4f46e5", accent2:"#6366f1", hdrBg:"#4338ca", hdrText:"#ffffff"},
+  {name:"珊瑚",  bg:"#fff0ec", surface:"#ffffff", text:"#3a1813", accent:"#fb7185", accent2:"#f43f5e", hdrBg:"#f43f5e", hdrText:"#ffffff"},
+  {name:"薄荷",  bg:"#ecfbf3", surface:"#ffffff", text:"#0c2e1c", accent:"#34d399", accent2:"#2dd4bf", hdrBg:"#10b981", hdrText:"#042016"},
+  {name:"流金",  bg:"#fff8e1", surface:"#fffdf2", text:"#3a2e05", accent:"#ca8a04", accent2:"#eab308", hdrBg:"#ca8a04", hdrText:"#ffffff"},
+  {name:"梅紫",  bg:"#f6eefb", surface:"#ffffff", text:"#2e153a", accent:"#9333ea", accent2:"#a855f7", hdrBg:"#7e22ce", hdrText:"#ffffff"},
+  {name:"钢蓝",  bg:"#eef2f6", surface:"#ffffff", text:"#1e293b", accent:"#3b82f6", accent2:"#60a5fa", hdrBg:"#2563eb", hdrText:"#ffffff"},
+  {name:"绯红",  bg:"#fdecec", surface:"#ffffff", text:"#3a0f0f", accent:"#dc2626", accent2:"#ef4444", hdrBg:"#b91c1c", hdrText:"#ffffff"},
+  {name:"水玉",  bg:"#e9fbff", surface:"#ffffff", text:"#06343f", accent:"#22d3ee", accent2:"#06b6d4", hdrBg:"#06b6d4", hdrText:"#04222a"},
+  {name:"蜜桃",  bg:"#fff1ea", surface:"#ffffff", text:"#3a2013", accent:"#fb923c", accent2:"#fdba74", hdrBg:"#fb923c", hdrText:"#3a1f0a"},
+  {name:"紫罗兰",bg:"#f1ecfb", surface:"#ffffff", text:"#241a3a", accent:"#8b5cf6", accent2:"#a78bfa", hdrBg:"#7c3aed", hdrText:"#ffffff"},
+  {name:"青柠",  bg:"#f4fbe9", surface:"#ffffff", text:"#1f2e08", accent:"#84cc16", accent2:"#a3e635", hdrBg:"#65a30d", hdrText:"#14210a"},
+  {name:"藏青",  bg:"#eaf0f7", surface:"#ffffff", text:"#10243f", accent:"#1e40af", accent2:"#3b82f6", hdrBg:"#1e3a8a", hdrText:"#ffffff"}
+];
+
+function hexToRgb(h){ const n=parseInt(h.slice(1),16); return [n>>16&255,n>>8&255,n&255]; }
+function rgba(hex,a){ const [r,g,b]=hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+function applyTheme(i){
+  const t = THEMES[i]; const r = document.documentElement.style;
+  r.setProperty("--bg", t.bg); r.setProperty("--surface", t.surface);
+  r.setProperty("--text", t.text);
+  r.setProperty("--muted", rgba(t.text, .6));
+  r.setProperty("--accent", t.accent); r.setProperty("--accent2", t.accent2);
+  r.setProperty("--hdr-bg", t.hdrBg); r.setProperty("--hdr-text", t.hdrText);
+  r.setProperty("--row-alt", rgba(t.accent, .07));
+  r.setProperty("--border", rgba(t.accent, .22));
+  r.setProperty("--shadow", rgba(t.text, .12));
+  try{ localStorage.setItem("perfTheme", i); }catch(e){}
+  document.querySelectorAll(".theme-opt").forEach((el,idx)=> el.classList.toggle("active", idx===i));
+}
+
+/* 构建主题面板 */
+const grid = document.getElementById("themeGrid");
+grid.innerHTML = THEMES.map((t,i)=>
+  `<div class="theme-opt" data-i="${i}" title="${t.name}">
+     <div class="sw" style="background:linear-gradient(135deg,${t.accent},${t.accent2})"></div>${t.name}
+   </div>`).join("");
+grid.querySelectorAll(".theme-opt").forEach(el=>{
+  el.addEventListener("click", ()=> applyTheme(+el.dataset.i));
+});
+
+/* 悬浮球交互 */
+const fab = document.getElementById("themeFab");
+const panel = document.getElementById("themePanel");
+const fabTab = document.getElementById("fabTab");
+document.getElementById("fabBtn").addEventListener("click", ()=> panel.classList.toggle("open"));
+document.getElementById("panelClose").addEventListener("click", ()=> panel.classList.remove("open"));
+document.getElementById("panelHide").addEventListener("click", ()=>{
+  fab.style.display="none"; panel.classList.remove("open"); fabTab.style.display="block";
+});
+fabTab.addEventListener("click", ()=>{ fab.style.display="block"; fabTab.style.display="none"; panel.classList.add("open"); });
+
+/* ---------- 初始化 ---------- */
+(function init(){
+  let saved = 0;
+  try{ saved = parseInt(localStorage.getItem("perfTheme")||"0",10)||0; }catch(e){}
+  applyTheme(saved);
+  renderChips();
+  document.getElementById("statsLine").textContent = `共 ${ALL.length} 人`;
+  renderScroll();
+})();
+</script>
+</body>
+</html>
