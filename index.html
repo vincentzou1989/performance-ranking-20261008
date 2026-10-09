@@ -58,7 +58,7 @@
 
   /* ===== 表格卡片（白底 + 1px 发丝边框，无阴影） ===== */
   .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden;}
-  .table-scroll{height:clamp(380px,62vh,760px);overflow-y:auto;position:relative;}
+  .table-scroll{position:relative;}
   table{width:100%;border-collapse:collapse;table-layout:fixed;}
   thead th{position:sticky;top:0;z-index:3;background:var(--hdr-bg);color:var(--hdr-text);
     font-weight:600;font-size:clamp(12px,2.1vw,15px);padding:15px 8px;text-align:center;
@@ -108,13 +108,11 @@
     .controls{margin-top:18px;}
     .search-box{flex:1 1 100%;}
     .stats{flex:1 1 100%;text-align:left;}
-    .table-scroll{height:clamp(320px,52vh,560px);}
     thead th{padding:12px 4px;font-size:12px;}
     tbody td{padding:10px 4px;font-size:12px;}
     .theme-fab,.theme-panel{right:12px;}
   }
   @media (min-width:681px) and (max-width:1024px){
-    .table-scroll{height:clamp(360px,56vh,680px);}
   }
 </style>
 </head>
@@ -240,7 +238,7 @@ const scroll = document.getElementById("tableScroll");
 
 function rowHTML(r){
   const rankCls = r.rank<=3 ? "rank-"+r.rank : "";
-  const bonusText = r.bonus >= 1000 ? "¥1000+" : "¥"+r.bonus;
+  const bonusText = "¥"+r.bonus+"+";
   return `<tr>
     <td>${r.name}</td>
     <td class="col-team">${r.team}</td>
