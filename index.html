@@ -58,7 +58,11 @@
 
   /* ===== 表格卡片（白底 + 1px 发丝边框，无阴影） ===== */
   .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden;}
-  .table-scroll{position:relative;}
+  .table-scroll{position:relative;max-height:clamp(360px,56vh,600px);overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+  .table-scroll::-webkit-scrollbar{width:8px;}
+  .table-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+  .table-scroll::-webkit-scrollbar-track{background:transparent;}
   table{width:100%;border-collapse:collapse;table-layout:fixed;}
   thead th{position:sticky;top:0;z-index:3;background:var(--hdr-bg);color:var(--hdr-text);
     font-weight:600;font-size:clamp(12px,2.1vw,15px);padding:15px 8px;text-align:center;
@@ -250,8 +254,28 @@ function rowHTML(r){
   </tr>`;
 }
 
+// 自动滚动（渲染全部 100 人 + 复制一份实现无缝循环）
+let oneCopy = 0, scrollRAF = null, lastT = 0, scrollPaused = false;
+
 function renderScroll(){
-  tbody.innerHTML = ALL.map(rowHTML).join("");
+  const html = ALL.map(rowHTML).join("");
+  // 复制一份用于无缝循环；两组名单完全相同，视觉上仍是这 100 人
+  tbody.innerHTML = html + html;
+  scroll.scrollTop = 0;
+  lastT = 0;
+  oneCopy = scroll.scrollHeight / 2;
+  if(!scrollRAF) scrollRAF = requestAnimationFrame(tick);
+  document.getElementById("statsLine").textContent = `共 ${ALL.length} 人`;
+}
+
+function tick(t){
+  if(!lastT) lastT = t;
+  const dt = (t - lastT) / 1000; lastT = t;
+  if(!scrollPaused && oneCopy > 0 && scroll.scrollHeight > scroll.clientHeight + 2){
+    scroll.scrollTop += CONFIG.scrollSpeed * dt;
+    if(scroll.scrollTop >= oneCopy) scroll.scrollTop -= oneCopy; // 回到顶部，无缝衔接
+  }
+  scrollRAF = requestAnimationFrame(tick);
 }
 
 function renderSearch(q){
@@ -260,6 +284,8 @@ function renderSearch(q){
     if(!kw) return true;
     return r.name.toLowerCase().includes(kw) || r.team.toLowerCase().includes(kw);
   });
+  oneCopy = 0; // 搜索结果不自动滚动
+  scroll.scrollTop = 0;
   tbody.innerHTML = list.length
     ? list.map(rowHTML).join("")
     : `<tr><td colspan="7" style="padding:40px;color:var(--muted)">未找到匹配记录</td></tr>`;
@@ -277,6 +303,10 @@ clearBtn.addEventListener("click", ()=>{
   searchInput.value=""; clearBtn.style.display="none";
   document.getElementById("statsLine").textContent = `共 ${ALL.length} 人`; renderScroll();
 });
+
+// 鼠标悬停 / 触摸时暂停滚动，方便查看
+scroll.addEventListener("pointerenter", ()=> scrollPaused = true);
+scroll.addEventListener("pointerleave", ()=> scrollPaused = false);
 
 (function setPeriod(){
   const now = new Date();
